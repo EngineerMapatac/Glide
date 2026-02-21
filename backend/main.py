@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="Glide Diagnostic Engine API")
+app = FastAPI(title="Glide API")
 
 @app.get("/")
 def read_root():
