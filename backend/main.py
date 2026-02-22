@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+import csv
+from io import StringIO
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models, schemas
@@ -29,3 +31,23 @@ def create_event(event: schemas.TaskEventCreate, db: Session = Depends(get_db)):
 def get_events(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     events = db.query(models.TaskEvent).offset(skip).limit(limit).all()
     return events
+
+@app.post("/upload-csv/")
+def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    contents = file.file.read()
+    buffer = StringIO(contents.decode('utf-8'))
+    csvReader = csv.DictReader(buffer)
+    
+    events = []
+    for row in csvReader:
+        db_event = models.TaskEvent(
+            task_id=row.get('task_id'),
+            previous_status=row.get('previous_status'),
+            new_status=row.get('new_status'),
+            assigned_to=row.get('assigned_to')
+        )
+        events.append(db_event)
+        
+    db.bulk_save_objects(events)
+    db.commit()
+    return {"filename": file.filename, "records_inserted": len(events)}
